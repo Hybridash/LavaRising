@@ -1,0 +1,58 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Build
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew build --stacktrace 2>&1 | tee build.log
+      - name: Report build errors
+        if: failure()
+        run: |
+          { grep -nE "error:|warning:" build.log | head -40; grep -A12 "What went wrong" build.log; } > errors.txt || true
+          msg=$(sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' errors.txt)
+          echo "::error title=Gradle build failed::$msg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LavaRising
+          path: build/libs/*.jar
+          if-no-files-found: error
+      # Every push to main: if gradle.properties has a mod_version that hasn't been released yet,
+      # publish a GitHub release (tag v<mod_version>) with the jar. Bump mod_version to ship an update.
+      - name: Check if this version is released
+        id: ver
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          v=$(grep '^mod_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$v" >/dev/null; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish release
+        if: steps.ver.outputs.new == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ github.event.repository.name }} ${{ steps.ver.outputs.version }}
+          files: build/libs/*.jar
+          generate_release_notes: true

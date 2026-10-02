@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "lavarising",
+	"version": "${version}",
+	"name": "Lava Rising",
+	"description": "Multiplayer minigame: /lava start shrinks the world border and lava rises one layer at a time. Last player alive wins.",
+	"authors": ["Hybridash"],
+	"contact": {
+		"sources": "https://github.com/Hybridash/LavaRising",
+		"issues": "https://github.com/Hybridash/LavaRising/issues"
+	},
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["com.hybridash.lavarising.LavaRising"]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
